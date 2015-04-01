@@ -2,39 +2,60 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <queue>
+#include <cmath>
 
-inline const long segmentBegin(int rank, int numOfJobs, long size)
+static int numOfJobs;
+static long problemSize;
+
+inline const long segmentBegin(int rankForRange)
 {
-    return rank * size / numOfJobs;
+    return rankForRange * problemSize / (numOfJobs - 1);
 }
-inline const long segmentEnd(int rank, int numOfJobs, long size)
+inline const long segmentEnd(int rankForRange)
 {
-    return segmentBegin(rank + 1, numOfJobs, size);
+    return segmentBegin(rankForRange + 1);
 }
-inline const long segmentSize(int rank, int numOfJobs, long size)
+inline const long segmentSize(int rankForRange)
 {
-    return segmentEnd(rank, numOfJobs, size) - segmentBegin(rank, numOfJobs, size);
+    return segmentEnd(rankForRange) - segmentBegin(rankForRange);
+}
+inline const unsigned long getNumberFromIndex(unsigned long index, int rankForRange = 0)
+{
+    return (index + segmentBegin(rankForRange) + 1) * 2 + 1;
+}
+inline const unsigned long getIndexFromNumber(unsigned long number, int rankForRange = 0)
+{
+    return (number - segmentBegin(rankForRange) - 1) / 2 - 1;
 }
 
 int main(int argc, char* argv[])
 {
+    if(argc != 2)
+    {
+        std::cerr << "Binary takes one and only one additional argument: size of range to seek for primes" << std::endl;
+        return -1;
+    }
     MPI_Init(&argc, &argv);
 
-    int rank, numOfJobs;
+    int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &numOfJobs);
+    problemSize = std::ceil(std::stol(argv[1]) / 2.0) - 1;
+
+    int foremostWorker = 1;
     if (rank == 0)
     {
-        long value = std::stol(argv[1]);
-        int result = MPI_Bcast(&value, 1, MPI_LONG, 0, MPI_COMM_WORLD);
     }
     else if (rank > 0)
     {
         int rankForRange = rank - 1;
-        long value;
-        int result = MPI_Bcast(&value, 1, MPI_LONG, 0, MPI_COMM_WORLD);
         std::vector<bool> localPart;
-        localPart.resize(segmentSize(rankForRange, numOfJobs, value), false);
+        localPart.resize(segmentSize(rankForRange), false);
+        if(rank == foremostWorker)
+        {
+
+        }
         for(long i = 0; i < localPart.size(); ++i)
         {
             localPart[i] = true;
@@ -42,12 +63,12 @@ int main(int argc, char* argv[])
         std::string buffer = "Rank ";
         buffer += std::to_string(rank);
         buffer += " has beggining in ";
-        buffer += std::to_string(segmentBegin(rankForRange, numOfJobs, value));
+        buffer += std::to_string(segmentBegin(rankForRange));
         buffer += ", end in ";
-        buffer += std::to_string(segmentEnd(rankForRange, numOfJobs, value));
+        buffer += std::to_string(segmentEnd(rankForRange));
         buffer += ", size of ";
-        buffer += std::to_string(segmentSize(rankForRange, numOfJobs, value));
-        buffer += "\n";
+        buffer += std::to_string(segmentSize(rankForRange));
+        buffer += '\n';
         std::cout << buffer << std::endl;
     }
     MPI_Finalize();
