@@ -35,7 +35,10 @@ int main(int argc, char* argv[])
         int result = MPI_Bcast(&value, 1, MPI_LONG, 0, MPI_COMM_WORLD);
         std::vector<bool> localPart;
         localPart.resize(segmentSize(rankForRange, numOfJobs, value), false);
-        localPart[segmentEnd(rankForRange, numOfJobs, value) - 1] = true;
+        for(long i = 0; i < localPart.size(); ++i)
+        {
+            localPart[i] = true;
+        }
         std::string buffer = "Rank ";
         buffer += std::to_string(rank);
         buffer += " has beggining in ";
