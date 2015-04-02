@@ -4,6 +4,10 @@
 #include <vector>
 #include <queue>
 #include <cmath>
+#include <unistd.h>
+#include <boost/mpi.hpp>
+
+namespace mpi = boost::mpi;
 
 static int numOfJobs;
 static long problemSize;
@@ -36,29 +40,46 @@ int main(int argc, char* argv[])
         std::cerr << "Binary takes one and only one additional argument: size of range to seek for primes" << std::endl;
         return -1;
     }
-    MPI_Init(&argc, &argv);
+    mpi::environment env(argc, argv);
 
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &numOfJobs);
+
+    mpi::communicator world;
+    numOfJobs = world.size();
     problemSize = std::ceil(std::stol(argv[1]) / 2.0) - 1;
 
-    int foremostWorker = 1;
+    const int rank = world.rank();
     if (rank == 0)
     {
+        int foremostWorker = 1;
+        broadcast(world, foremostWorker, rank);
     }
     else if (rank > 0)
     {
-        int rankForRange = rank - 1;
-        std::vector<bool> localPart;
-        localPart.resize(segmentSize(rankForRange), false);
-        if(rank == foremostWorker)
+        int foremostWorker = 0;
+        const int rankForRange = rank - 1;
+        while(foremostWorker < rank)
         {
-
-        }
-        for(long i = 0; i < localPart.size(); ++i)
-        {
-            localPart[i] = true;
+            std::string buffer = std::to_string(rank) + ": MPI_Bcast(&newForemostWorker, 1, MPI_INT, " + std::to_string(foremostWorker) + ", MPI_COMM_WORLD);\n";
+            std::cout << buffer;
+            broadcast(world, foremostWorker, foremostWorker);
+            buffer = std::to_string(rank) + ": foremostWorker is " + std::to_string(foremostWorker) + "\n";
+            std::cout << buffer << std::endl;
+            std::vector<bool> localPart;
+            localPart.resize(segmentSize(rankForRange), false);
+//             std::queue<long> indexesOfFoundPrimes;
+//             indexesOfFoundPrimes.insert(0);
+            for(long i = 0; i < localPart.size(); ++i)
+            {
+                localPart[i] = true;
+            }
+            if(foremostWorker == rank)
+            {
+                int nextForemostWorker = foremostWorker + 1;
+                std::string buffer;
+                buffer = std::to_string(rank) + ": MPI_Bcast(&nextForemostWorker, 1, MPI_INT, " + std::to_string(rank) + ", MPI_COMM_WORLD);\n";
+                std::cout << buffer << std::endl;
+                broadcast(world, nextForemostWorker, foremostWorker);
+            }
         }
         std::string buffer = "Rank ";
         buffer += std::to_string(rank);
@@ -69,8 +90,8 @@ int main(int argc, char* argv[])
         buffer += ", size of ";
         buffer += std::to_string(segmentSize(rankForRange));
         buffer += '\n';
-        std::cout << buffer << std::endl;
+        std::cout << buffer;
     }
-    MPI_Finalize();
     return 0;
 }
+
