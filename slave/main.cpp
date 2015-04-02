@@ -44,6 +44,8 @@ int main(int argc, char* argv[])
 
 
     mpi::communicator world;
+    mpi::group workers(world.group(), false);
+    mpi::communicator workersComm(world, workers.exclude(0, 1));
     numOfJobs = world.size();
     problemSize = std::ceil(std::stol(argv[1]) / 2.0) - 1;
 
@@ -72,13 +74,12 @@ int main(int argc, char* argv[])
             {
                 localPart[i] = true;
             }
-            if(foremostWorker == rank)
+            if(foremostWorker++ == rank)
             {
-                int nextForemostWorker = foremostWorker + 1;
                 std::string buffer;
                 buffer = std::to_string(rank) + ": MPI_Bcast(&nextForemostWorker, 1, MPI_INT, " + std::to_string(rank) + ", MPI_COMM_WORLD);\n";
                 std::cout << buffer << std::endl;
-                broadcast(world, nextForemostWorker, foremostWorker);
+                broadcast(workersComm, foremostWorker, rank);
             }
         }
         std::string buffer = "Rank ";
