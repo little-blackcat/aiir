@@ -6,6 +6,8 @@
 #include <cmath>
 #include <unistd.h>
 #include <boost/mpi.hpp>
+#include <boost/range/irange.hpp>
+#include "Worker.hpp"
 
 namespace mpi = boost::mpi;
 
@@ -41,55 +43,60 @@ int main(int argc, char* argv[])
         return -1;
     }
     mpi::environment env(argc, argv);
-
-
     mpi::communicator world;
-    mpi::group workers(world.group(), false);
-    mpi::communicator workersComm(world, workers.exclude(0, 1));
     numOfJobs = world.size();
-    problemSize = std::ceil(std::stol(argv[1]) / 2.0) - 1;
+    const long problemSize = std::ceil(std::stol(argv[1]) / 2.0) - 1;
+    ::problemSize = problemSize;
+    const int globalRank = world.rank();
+    boost::mpi::communicator workersComm = world.split(globalRank && true);
 
-    const int rank = world.rank();
-    if (rank == 0)
+    if (globalRank == 0)
     {
         int foremostWorker = 1;
-        broadcast(world, foremostWorker, rank);
+        broadcast(world, foremostWorker, globalRank);
     }
-    else if (rank > 0)
+    else if (globalRank > 0)
     {
+        auto w = Worker::getInstance(problemSize, workersComm);
         int foremostWorker = 0;
-        const int rankForRange = rank - 1;
-        while(foremostWorker < rank)
+        broadcast(world, foremostWorker, foremostWorker);
+        const int workerRank = globalRank - 1;
+//         mpi::communicator workersComm(world, workers);
+        while(true)
         {
-            std::string buffer = std::to_string(rank) + ": MPI_Bcast(&newForemostWorker, 1, MPI_INT, " + std::to_string(foremostWorker) + ", MPI_COMM_WORLD);\n";
+            std::string buffer = "WorkerRank " + std::to_string(workerRank) + " starting broadcast now!\n";
             std::cout << buffer;
-            broadcast(world, foremostWorker, foremostWorker);
-            buffer = std::to_string(rank) + ": foremostWorker is " + std::to_string(foremostWorker) + "\n";
+            broadcast(workersComm, foremostWorker, 1);
+//             std::string buffer = std::to_string(globalRank) + ": MPI_Bcast(&newForemostWorker, 1, MPI_INT, " + std::to_string(foremostWorker) + ", MPI_COMM_WORLD);\n";
+//             std::cout << buffer;
+
+            buffer = std::to_string(globalRank) + ": foremostWorker is " + std::to_string(foremostWorker) + "\n";
             std::cout << buffer << std::endl;
             std::vector<bool> localPart;
-            localPart.resize(segmentSize(rankForRange), false);
+            localPart.resize(segmentSize(workerRank), false);
 //             std::queue<long> indexesOfFoundPrimes;
 //             indexesOfFoundPrimes.insert(0);
             for(long i = 0; i < localPart.size(); ++i)
             {
                 localPart[i] = true;
             }
-            if(foremostWorker++ == rank)
-            {
-                std::string buffer;
-                buffer = std::to_string(rank) + ": MPI_Bcast(&nextForemostWorker, 1, MPI_INT, " + std::to_string(rank) + ", MPI_COMM_WORLD);\n";
-                std::cout << buffer << std::endl;
-                broadcast(workersComm, foremostWorker, rank);
-            }
+//             if(foremostWorker++ == globalRank)
+//             {
+//                 std::string buffer;
+//                 buffer = std::to_string(globalRank) + ": MPI_Bcast(&nextForemostWorker, 1, MPI_INT, " + std::to_string(globalRank) + ", MPI_COMM_WORLD);\n";
+//                 std::cout << buffer << std::endl;
+//                 broadcast(world, foremostWorker, globalRank);
+//             }
+
         }
         std::string buffer = "Rank ";
-        buffer += std::to_string(rank);
+        buffer += std::to_string(globalRank) + "/" + std::to_string(workerRank);
         buffer += " has beggining in ";
-        buffer += std::to_string(segmentBegin(rankForRange));
+        buffer += std::to_string(segmentBegin(workerRank));
         buffer += ", end in ";
-        buffer += std::to_string(segmentEnd(rankForRange));
+        buffer += std::to_string(segmentEnd(workerRank));
         buffer += ", size of ";
-        buffer += std::to_string(segmentSize(rankForRange));
+        buffer += std::to_string(segmentSize(workerRank));
         buffer += '\n';
         std::cout << buffer;
     }
