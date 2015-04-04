@@ -58,47 +58,34 @@ int main(int argc, char* argv[])
     else if (globalRank > 0)
     {
         auto w = Worker::getInstance(problemSize, workersComm);
-        int foremostWorker = 0;
-        broadcast(world, foremostWorker, foremostWorker);
-        const int workerRank = globalRank - 1;
-//         mpi::communicator workersComm(world, workers);
-        while(true)
-        {
-            std::string buffer = "WorkerRank " + std::to_string(workerRank) + " starting broadcast now!\n";
-            std::cout << buffer;
-            broadcast(workersComm, foremostWorker, 1);
-//             std::string buffer = std::to_string(globalRank) + ": MPI_Bcast(&newForemostWorker, 1, MPI_INT, " + std::to_string(foremostWorker) + ", MPI_COMM_WORLD);\n";
+//         int foremostWorker = 0;
+//         broadcast(world, foremostWorker, foremostWorker);
+//         const int workerRank = globalRank - 1;
+//         while(true)
+//         {
+//             std::string buffer = "WorkerRank " + std::to_string(workerRank) + " starting broadcast now!\n";
 //             std::cout << buffer;
-
-            buffer = std::to_string(globalRank) + ": foremostWorker is " + std::to_string(foremostWorker) + "\n";
-            std::cout << buffer << std::endl;
-            std::vector<bool> localPart;
-            localPart.resize(segmentSize(workerRank), false);
-//             std::queue<long> indexesOfFoundPrimes;
-//             indexesOfFoundPrimes.insert(0);
-            for(long i = 0; i < localPart.size(); ++i)
-            {
-                localPart[i] = true;
-            }
-//             if(foremostWorker++ == globalRank)
+//             broadcast(workersComm, foremostWorker, 1);
+//
+//             buffer = std::to_string(globalRank) + ": foremostWorker is " + std::to_string(foremostWorker) + "\n";
+//             std::cout << buffer << std::endl;
+//             std::vector<bool> localPart;
+//             for(long i = 0; i < localPart.size(); ++i)
 //             {
-//                 std::string buffer;
-//                 buffer = std::to_string(globalRank) + ": MPI_Bcast(&nextForemostWorker, 1, MPI_INT, " + std::to_string(globalRank) + ", MPI_COMM_WORLD);\n";
-//                 std::cout << buffer << std::endl;
-//                 broadcast(world, foremostWorker, globalRank);
+//                 localPart[i] = true;
 //             }
-
-        }
-        std::string buffer = "Rank ";
-        buffer += std::to_string(globalRank) + "/" + std::to_string(workerRank);
-        buffer += " has beggining in ";
-        buffer += std::to_string(segmentBegin(workerRank));
-        buffer += ", end in ";
-        buffer += std::to_string(segmentEnd(workerRank));
-        buffer += ", size of ";
-        buffer += std::to_string(segmentSize(workerRank));
-        buffer += '\n';
-        std::cout << buffer;
+//
+//         }
+//         std::string buffer = "Rank ";
+//         buffer += std::to_string(globalRank) + "/" + std::to_string(workerRank);
+//         buffer += " has beggining in ";
+//         buffer += std::to_string(segmentBegin(workerRank));
+//         buffer += ", end in ";
+//         buffer += std::to_string(segmentEnd(workerRank));
+//         buffer += ", size of ";
+//         buffer += std::to_string(segmentSize(workerRank));
+//         buffer += '\n';
+//         std::cout << buffer;
     }
     return 0;
 }
