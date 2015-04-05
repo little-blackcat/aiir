@@ -8,6 +8,7 @@
 #include <boost/mpi.hpp>
 #include <boost/range/irange.hpp>
 #include "Worker.hpp"
+#include "IbcastExtensionForBoostMPI.hpp"
 
 namespace mpi = boost::mpi;
 
@@ -50,17 +51,24 @@ int main(int argc, char* argv[])
     const int globalRank = world.rank();
     boost::mpi::communicator workersComm = world.split(globalRank && true);
 
+    std::string buffer = "workersComm.size " + std::to_string(workersComm.size()) + '\n';
+    std::cout << buffer << std::endl;
+    int foremostWorker = 0;
     if (globalRank == 0)
     {
-        int foremostWorker = 1;
-        broadcast(world, foremostWorker, globalRank);
+        foremostWorker = 1;
+        mpi::request req[1] = {mpi::ibroadcast(world, foremostWorker, 0)};
+//         mpi::wait_all(req, req + 1);
     }
     else if (globalRank > 0)
     {
-        auto w = Worker::getInstance(problemSize, workersComm);
-//         int foremostWorker = 0;
-//         broadcast(world, foremostWorker, foremostWorker);
-//         const int workerRank = globalRank - 1;
+        auto worker = Worker::getInstance(problemSize, workersComm);
+        mpi::request req[1] = {mpi::ibroadcast(world, foremostWorker, 0)};
+        auto broadcastCame = mpi::test_all(req, req + 1);
+        buffer = "WorkerRank " + std::to_string(globalRank) + " ibroadcasted now, foremostWorker " + std::to_string(foremostWorker)
+                 + ", broadcastCame " + std::to_string(broadcastCame) + "\n";
+        std::cout << buffer;
+        const int workerRank = globalRank - 1;
 //         while(true)
 //         {
 //             std::string buffer = "WorkerRank " + std::to_string(workerRank) + " starting broadcast now!\n";
@@ -76,16 +84,16 @@ int main(int argc, char* argv[])
 //             }
 //
 //         }
-//         std::string buffer = "Rank ";
-//         buffer += std::to_string(globalRank) + "/" + std::to_string(workerRank);
-//         buffer += " has beggining in ";
-//         buffer += std::to_string(segmentBegin(workerRank));
-//         buffer += ", end in ";
-//         buffer += std::to_string(segmentEnd(workerRank));
-//         buffer += ", size of ";
-//         buffer += std::to_string(segmentSize(workerRank));
-//         buffer += '\n';
-//         std::cout << buffer;
+        buffer = "Rank ";
+        buffer += std::to_string(globalRank) + "/" + std::to_string(workerRank);
+        buffer += " has beggining in ";
+        buffer += std::to_string(segmentBegin(workerRank));
+        buffer += ", end in ";
+        buffer += std::to_string(segmentEnd(workerRank));
+        buffer += ", size of ";
+        buffer += std::to_string(segmentSize(workerRank));
+        buffer += '\n';
+        std::cout << buffer;
     }
     return 0;
 }

@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 2.6)
 project(slave)
-
 add_executable(slave IbcastExtensionForBoostMPI.hpp main.cpp Worker.cpp)
 
 set(MPICH_C clang)
