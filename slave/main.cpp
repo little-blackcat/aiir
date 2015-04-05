@@ -68,6 +68,7 @@ int main(int argc, char* argv[])
         buffer = "WorkerRank " + std::to_string(globalRank) + " ibroadcasted now, foremostWorker " + std::to_string(foremostWorker)
                  + ", broadcastCame " + std::to_string(broadcastCame) + "\n";
         std::cout << buffer;
+        worker->run();
         const int workerRank = globalRank - 1;
 //         while(true)
 //         {
