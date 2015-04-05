@@ -15,7 +15,6 @@ Worker::Worker(const long int lastNumber, const mpi::communicator& comm) :
                     rank(comm.rank())
 {
     localSegmentOfRange.resize(segmentSize(rank), false);
-    primes.push(3);
 }
 
 inline const long Worker::segmentBegin(const int rankForRange)
@@ -37,4 +36,36 @@ inline const unsigned long Worker::getNumberFromIndex(const long index, int rank
 inline const unsigned long Worker::getIndexFromNumber(const long number, int rankForRange)
 {
     return (number - segmentBegin(rankForRange) - 1) / 2 - 1;
+}
+
+void Worker::run()
+{
+    //threads for updating primes and foremostWorker
+    while(rank >= foremostWorker) //method with mutexes
+    {
+        if(rank == foremostWorker && foundPrime != localSegmentOfRange.end())
+        {
+            auto index = std::distance(localSegmentOfRange.begin(), foundPrime);
+            primes.push(getNumberFromIndex(index, rank));
+            //broadcast new prime
+            foundPrime = std::find(foundPrime, localSegmentOfRange.end(), true);
+        }
+        if(! primes.empty())
+        {
+            const long prime = primes.front(); // mutexes!
+            primes.pop();
+            for(long i = getIndexFromNumber(prime, rank); i < segmentSize(rank); i *= prime)
+            {
+                localSegmentOfRange[i] = false;
+            }
+        }
+    }
+    while(rank < foremostWorker)
+    {
+        long prime;
+        mpi::request req[2];
+        req[0] = mpi::ibroadcast(workerCommunicator, prime, foremostWorker);
+        req[1] = workerCommunicator.irecv(foremostWorker, operationTag::advanceForemostWorker, foremostWorker);
+        mpi::wait_all(req, req + 2);
+    }
 }
