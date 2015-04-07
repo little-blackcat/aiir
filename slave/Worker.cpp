@@ -1,7 +1,6 @@
 #include "Worker.hpp"
 #include <functional>
 #include <thread>
-#include <chrono>
 
 namespace mpi = boost::mpi;
 

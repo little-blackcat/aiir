@@ -1,9 +1,7 @@
-#include <memory>
 #include <boost/mpi.hpp>
 #include <queue>
 #include <vector>
 #include <mutex>
-#include <cmath>
 #include <atomic>
 #include "IbcastExtensionForBoostMPI.hpp"
 
@@ -32,12 +30,6 @@ private:
     inline const long getIndexFromNumber(const long number);
     inline const long firstUnevenMultipleInRange(const long prime);
 
-//     template<typename T, typename Comparator>
-//     inline bool compareSafely(const T& lv, Comparator compare, const T& rv)
-//     {
-//         std::unique_lock<std::mutex> lock(workerLock);
-//         return compare(lv, rv);
-//     }
     void updatePrimes();
     void updateForemostWorker();
 
