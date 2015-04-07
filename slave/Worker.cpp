@@ -1,5 +1,4 @@
 #include "Worker.hpp"
-#include <functional>
 #include <thread>
 
 namespace mpi = boost::mpi;
