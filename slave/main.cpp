@@ -19,4 +19,3 @@ int main(int argc, char* argv[])
     worker->run();
     return 0;
 }
-

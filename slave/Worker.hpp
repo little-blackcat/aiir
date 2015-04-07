@@ -1,9 +1,9 @@
-#include <boost/mpi.hpp>
+#include <boost/mpi/nonblocking.hpp>
+#include <boost/mpi/communicator.hpp>
 #include <queue>
 #include <vector>
 #include <mutex>
 #include <atomic>
-#include "IbcastExtensionForBoostMPI.hpp"
 
 #pragma once
 
@@ -14,7 +14,6 @@ public:
     static Worker* getInstance(const long int lastNumber, const mpi::communicator& comm);
     void run();
 private:
-//     typedef std::greater<const int> greater;
     enum operationTag : int
     {
         primeBroadcast = 24,
