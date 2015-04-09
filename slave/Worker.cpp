@@ -1,15 +1,10 @@
 #include "Worker.hpp"
-#include <thread>
+#include <boost/mpi/collectives/reduce.hpp>
+#include <algorithm>
+#include <cmath>
+#include <functional>
 
-namespace mpi = boost::mpi;
-
-namespace threads
-{
-    using namespace std::literals;
-    auto idleTime = 50us;
-}
-
-Worker* Worker::getInstance(const long lastNumber, const mpi::communicator& comm)
+Worker* Worker::getInstance(const long lastNumber, const boost::mpi::communicator& comm)
 {
     static Worker w(lastNumber, comm);
     return &w;
@@ -17,33 +12,17 @@ Worker* Worker::getInstance(const long lastNumber, const mpi::communicator& comm
 
 void Worker::run()
 {
-    std::thread primeUpdater(&Worker::updatePrimes, this);
-    std::thread workerUpdater(&Worker::updateForemostWorker, this);
+    precomputePrimes();
+    removeMultiples();
+    auto sumOfPrimes = sumPrimes();
 
-    while(rank > foremostWorker)
-    {
-        removeMultiples();
-    }
-
-    primeUpdater.join();
-    workerUpdater.join();
-
-    while(rank == foremostWorker)
-    {
-        bool allMultiplesRemoved = removeMultiples();
-        if(lastFoundPrime != localSegmentOfRange.end() && allMultiplesRemoved)
-        {
-            findNextPrime();
-        }
-        else if(lastFoundPrime == localSegmentOfRange.end() && allMultiplesRemoved)
-        {
-            advanceForemostWorker();
-        }
-    }
-    std::cout << "Worker " << rank << " finished\n";
+    std::cout << "Worker " << rank << " finished with sum: " << sumOfPrimes << std::endl;
+    long output = 0;
+    boost::mpi::communicator world;
+    boost::mpi::reduce(world, sumOfPrimes, output, std::plus<>(), 0);
 }
 
-Worker::Worker(const long lastNumber, const mpi::communicator& comm) :
+Worker::Worker(const long lastNumber, const boost::mpi::communicator& comm) :
                     problemSize(lastNumber),
                     numOfWorkers(comm.size()),
                     workerCommunicator(comm),
@@ -52,10 +31,7 @@ Worker::Worker(const long lastNumber, const mpi::communicator& comm) :
                     segmentEnd(calculateSegmentEnd(comm.rank(), lastNumber, comm.size())),
                     segmentSize(calculateSegmentSize(comm.rank(), lastNumber, comm.size()))
 {
-    foremostWorker = 0;
     localSegmentOfRange.resize(segmentSize, true);
-    lastFoundPrime = localSegmentOfRange.begin();
-    primeBroadcastRequests.resize(numOfWorkers);
     std::cout << "Worker " << rank << " started up!\n";
 }
 
@@ -86,79 +62,43 @@ inline const long Worker::firstUnevenMultipleInRange(const long prime)
     return firstMultiple;
 }
 
-void Worker::updatePrimes()
+void Worker::precomputePrimes()
 {
-    while(rank > foremostWorker)
-    {
-        std::this_thread::sleep_for(threads::idleTime);
-        int previousForemostWorker = foremostWorker;
-        if(workerCommunicator.iprobe(previousForemostWorker, primeBroadcast))
-        {
-            long prime;
-            workerCommunicator.recv(previousForemostWorker, primeBroadcast, prime);
-            std::unique_lock<std::mutex> lock(queueLock);
-            primes.push(prime);
-        }
-    }
-}
+    std::vector<long> smallSet;
+    smallSet.resize(std::ceil(std::sqrt(problemSize * 2 + 1)), true);
+    smallSet[0] = false;
+    smallSet[1] = false;
+    smallSet[2] = false;
+    const auto size = smallSet.size();
 
-void Worker::updateForemostWorker()
-{
-    while(rank > foremostWorker)
+    long prime = 2;
+    while(prime < size)
     {
-        std::this_thread::sleep_for(threads::idleTime);
-        if(workerCommunicator.iprobe(foremostWorker, foremostWorkerChange))
-        {
-            int newForemostWorker;
-            workerCommunicator.recv(foremostWorker, foremostWorkerChange, newForemostWorker);
-            foremostWorker = newForemostWorker;
-        }
-    }
-}
-
-void Worker::findNextPrime()
-{
-    if((lastFoundPrime = std::find(lastFoundPrime, localSegmentOfRange.end(), true)) != localSegmentOfRange.end())
-    {
-        auto index = std::distance(localSegmentOfRange.begin(), lastFoundPrime);
-        auto prime = getNumberFromIndex(index);
-        std::unique_lock<std::mutex> lock(queueLock);
         primes.push(prime);
-        lock.unlock();
-        mpi::wait_all(primeBroadcastRequests.begin() + rank + 1, primeBroadcastRequests.end());
-        for (int i = rank + 1; i < numOfWorkers; ++i)
+        for(int multiple = prime; multiple < size; multiple += prime)
         {
-            primeBroadcastRequests[i] = workerCommunicator.isend(i, primeBroadcast, prime);
+            smallSet[multiple] = false;
         }
+        prime = std::distance(smallSet.begin(), std::find(smallSet.begin(), smallSet.end(), true));
     }
+    primes.pop();
 }
 
-bool Worker::removeMultiples()
+void Worker::removeMultiples()
 {
-    using namespace std::literals;
-    std::unique_lock<std::mutex> lock(queueLock);
-    if(! primes.empty())
+    while(! primes.empty())
     {
-        const long prime = primes.front();
+        auto prime = primes.front();
         primes.pop();
-        lock.unlock();
-        for(long i = getIndexFromNumber(firstUnevenMultipleInRange(prime)); i < segmentSize; i+= prime)
-        {
-            localSegmentOfRange[i] = false;
-        }
-        return false;
+        for(long i = getIndexFromNumber(firstUnevenMultipleInRange(prime)) + prime; i < segmentSize; i+= prime)
+            {
+                localSegmentOfRange[i] = false;
+            }
     }
-    return true;
 }
 
-void Worker::advanceForemostWorker()
+long Worker::sumPrimes()
 {
-    foremostWorker++;
-    std::vector<mpi::request> req;
-    for(int i = rank + 1; i < numOfWorkers; ++i)
-    {
-        req.push_back(workerCommunicator.isend(i, foremostWorkerChange, foremostWorker.load()));
-    }
-    mpi::wait_all(req.begin(), req.end());
-    std::cout << "foremostWorker advanced to " << foremostWorker.load() << "\n";
+    return std::count(localSegmentOfRange.begin(), localSegmentOfRange.end(), true);
 }
+
