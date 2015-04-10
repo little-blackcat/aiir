@@ -7,7 +7,7 @@
 class Worker
 {
 public:
-    static Worker* getInstance(const long int lastNumber, const boost::mpi::communicator& comm);
+    static Worker& getInstance(const long int lastNumber, const boost::mpi::communicator& comm);
     void run();
 private:
 
