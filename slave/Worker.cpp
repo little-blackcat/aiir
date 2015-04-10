@@ -3,11 +3,13 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <chrono>
+#include <thread>
 
-Worker* Worker::getInstance(const long lastNumber, const boost::mpi::communicator& comm)
+Worker& Worker::getInstance(const long lastNumber, const boost::mpi::communicator& comm)
 {
     static Worker w(lastNumber, comm);
-    return &w;
+    return w;
 }
 
 void Worker::run()
@@ -15,11 +17,9 @@ void Worker::run()
     precomputePrimes();
     removeMultiples();
     auto sumOfPrimes = sumPrimes();
-
-    std::cout << "Worker " << rank << " finished with sum: " << sumOfPrimes << std::endl;
-    long output = 0;
+    std::cout << "Worker " << rank << " finished." << std::endl;
     boost::mpi::communicator world;
-    boost::mpi::reduce(world, sumOfPrimes, output, std::plus<>(), 0);
+    boost::mpi::reduce(world, sumOfPrimes, std::plus<>(), 0);
 }
 
 Worker::Worker(const long lastNumber, const boost::mpi::communicator& comm) :
@@ -59,12 +59,20 @@ inline const long Worker::firstUnevenMultipleInRange(const long prime)
 {
     long remainder = getNumberFromIndex(0) % prime;
     long firstMultiple = getNumberFromIndex(0) + (prime - remainder) % prime;
+    if(! (firstMultiple % 2))
+    {
+        firstMultiple += prime;
+    }
+    else if(firstMultiple == prime)
+    {
+        firstMultiple += 2 * prime;
+    }
     return firstMultiple;
 }
 
 void Worker::precomputePrimes()
 {
-    std::vector<long> smallSet;
+    std::vector<bool> smallSet;
     smallSet.resize(std::ceil(std::sqrt(problemSize * 2 + 1)), true);
     smallSet[0] = false;
     smallSet[1] = false;
@@ -81,16 +89,16 @@ void Worker::precomputePrimes()
         }
         prime = std::distance(smallSet.begin(), std::find(smallSet.begin(), smallSet.end(), true));
     }
-    primes.pop();
+    primes.pop(); // pop 2 from queue
 }
 
 void Worker::removeMultiples()
 {
     while(! primes.empty())
     {
-        auto prime = primes.front();
+        const auto prime = primes.front();
         primes.pop();
-        for(long i = getIndexFromNumber(firstUnevenMultipleInRange(prime)) + prime; i < segmentSize; i+= prime)
+        for(long i = getIndexFromNumber(firstUnevenMultipleInRange(prime)); i < segmentSize; i+= prime)
             {
                 localSegmentOfRange[i] = false;
             }
