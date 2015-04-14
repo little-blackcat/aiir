@@ -82,9 +82,9 @@ void Worker::precomputePrimes()
     {
         primes.push(prime);
         smallSet[prime] = false;
-        for(auto multiple = smallSet.begin() + prime * prime; multiple < smallSet.end(); multiple += prime)
+        for(auto multiple = prime * prime; multiple < size; multiple += prime)
         {
-            *multiple = false;
+            smallSet[multiple] = false;
         }
         prime = std::distance(smallSet.begin(), std::find(smallSet.begin() + prime, smallSet.end(), true));
     }
@@ -97,10 +97,9 @@ void Worker::removeMultiples()
     {
         const auto prime = primes.front();
         primes.pop();
-        for(auto multiple = localSegmentOfRange.begin() + getIndexFromNumber(firstUnevenMultipleInRange(prime));
-            multiple < localSegmentOfRange.end(); multiple+= prime)
+        for(auto i = getIndexFromNumber(firstUnevenMultipleInRange(prime)); i < segmentSize; i+= prime)
             {
-                *multiple = false;
+                localSegmentOfRange[i] = false;
             }
     }
 }

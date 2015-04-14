@@ -22,7 +22,7 @@ int main(int argc, char* argv[])
     }
     if(world.rank() == 0)
     {
-        long sumOfPrimes = 1; //account for early popped 2
+        long sumOfPrimes = 1; //account for earlier popped 2
         long output;
         boost::mpi::reduce(world, sumOfPrimes, output, std::plus<>(), 0);
         std::cout << output << std::endl;
