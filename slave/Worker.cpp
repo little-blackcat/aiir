@@ -2,6 +2,7 @@
 #include <boost/mpi/collectives/reduce.hpp>
 #include <algorithm>
 #include <cmath>
+#include <functional>
 
 
 Worker& Worker::getInstance(const long lastNumber, const boost::mpi::communicator& comm)
