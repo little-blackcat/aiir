@@ -7,7 +7,7 @@ class PendingAdmin(admin.ModelAdmin):
 		(None, 				{'fields': ['priority']}),
 		('Information',		{'fields': ['rangeof']}),
 	]
-	list_display = ('priority','rangeof','request_time')
+	list_display = ('priority','rangeof','current_user','request_time')
 	ordering = ('-priority',) #sortowanie wg priorytetow
 
 admin.site.register(Pending, PendingAdmin)

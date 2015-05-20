@@ -22,14 +22,15 @@ def user_login(request):
         if user:
             if user.is_active:
                 login(request, user) 
-                return HttpResponseRedirect('/index/')
+                return HttpResponseRedirect('/index/tasks/')
+                #return render(request, 'aiir_app/tasks.html', {})
             else:
                 return HttpResponse("Twoje konto jest nieaktywne.")
         else:
             print "Nieprawidlowe dane konta: {0}, {1}".format(username, password)
             return HttpResponse("Invalid login details supplied.")
     else:
-        return render_to_response('aiir_app/login.html', {}, context)
+        return render_to_response('index.html', {}, context)
 
 def register(request):
     context = RequestContext(request)
@@ -56,12 +57,12 @@ def register(request):
 def index(request):
 	return render_to_response('index.html', {'user':request.user})
 
-#@login_required
+@login_required
 def get_task(request):
 	current_result = []
-	lista = Pending.objects.all()
+	lista = Pending.objects.filter(current_user=str(request.user.username))
 	msg = ''
-	all_result = Done.objects.all()
+	all_result = Done.objects.filter(current_user=str(request.user.username))
 
 	if request.method == 'POST':
 		form = TaskForm(request.POST)
@@ -69,20 +70,20 @@ def get_task(request):
 			temp = request.POST['range_of']
 
 			try:
-				current_result = Done.objects.get(rangeof=temp)
+				current_result = Done.objects.get(rangeof=temp, current_user=str(request.user.username))
 				all_result = Done.objects.all()
 				#return HttpResponse("Ilosc liczb pierwszych dla zadanego przedzialu: "+ str(current_result.result))
 				msg = "Ilosc liczb pierwszych dla zadanego przedzialu: "+ str(current_result.result)
 			except Done.DoesNotExist:
 				try:
-					x = Pending.objects.get(rangeof=temp)
+					x = Pending.objects.get(rangeof=temp, current_user=str(request.user.username))
 					msg = "Takie zadanie oczekuje juz w kolejce."
 				except Pending.DoesNotExist:
-				    Pending.objects.create(rangeof=temp)#,username=request.user.username)
+					Pending.objects.create(rangeof=temp,current_user=str(request.user.username))
 				#for item in lista:
 				#	print "Przedzial: " + str(item.rangeof) + " |\tPriorytet: " + str(item.priority)
 				#return HttpResponse("Twoje zadanie zostalo dodane do kolejki.")
-				    msg = "Twoje zadanie zostalo dodane do kolejki."
+					msg = "Twoje zadanie zostalo dodane do kolejki." 
 	else:
 		form = TaskForm()
 

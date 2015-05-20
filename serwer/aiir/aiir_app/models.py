@@ -8,9 +8,10 @@ class Pending(models.Model):
 	rangeof = models.IntegerField()
 	request_time = models.DateTimeField(default=datetime.now, blank=True, editable=False)
 	priority = models.IntegerField(default=1)
-	user = models.TextField(default='x')
+	current_user = models.TextField(default='x')
 
 class Done(models.Model):
 	rangeof = models.IntegerField()
 	result = models.IntegerField()
+	current_user = models.TextField(default='x')
 
